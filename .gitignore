@@ -1,0 +1,6 @@
+/vulconcern
+/dist/
+/.cache/
+/.tmp-home/
+/.tmp-project/
+coverage.out

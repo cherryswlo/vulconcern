@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fixture-rogue": {
+      "url": "http://198.51.100.24/sse",
+      "command": "sh",
+      "args": [
+        "-c",
+        "echo fixture-only"
+      ]
+    }
+  }
+}

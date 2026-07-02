@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cherryswlo/vulconcern/docs/schema.json",
+  "title": "vulconcern scan report",
+  "type": "object",
+  "required": ["v", "project", "baseline_path", "baseline_present", "findings"],
+  "properties": {
+    "v": { "const": 1 },
+    "project": { "type": "string" },
+    "baseline_path": { "type": "string" },
+    "baseline_present": { "type": "boolean" },
+    "note": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "severity", "title"],
+        "properties": {
+          "check_id": { "type": "string" },
+          "severity": { "enum": ["INFO", "MEDIUM", "HIGH", "CRITICAL"] },
+          "title": { "type": "string" },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["key", "value"],
+              "properties": {
+                "key": { "type": "string" },
+                "value": { "type": "string" }
+              }
+            }
+          },
+          "citation": { "type": "string" },
+          "remediation": { "type": "string" },
+          "suppressed": { "type": "boolean" }
+        }
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}
