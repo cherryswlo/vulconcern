@@ -4,3 +4,4 @@
 /.tmp-home/
 /.tmp-project/
 coverage.out
+.SCOPING-local-only.md
