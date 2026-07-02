@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "fixture-punycode": {
+      "url": "https://xn--nthropicapi-g4a.example.invalid/sse"
+    }
+  }
+}

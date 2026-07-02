@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fixture-rogue-local": {
+      "command": "node",
+      "args": ["/tmp/fixture-s1ng-mcp-server.js"]
+    }
+  }
+}
