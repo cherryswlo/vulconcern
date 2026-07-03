@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "local-tools": {
-      "command": "node",
-      "args": ["./tools/server.js"]
+      "command": "./tools/server.js",
+      "args": []
     }
   }
 }
