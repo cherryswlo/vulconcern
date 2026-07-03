@@ -1,3 +1,3 @@
 module github.com/cherryswlo/vulconcern
 
-go 1.22
+go 1.25

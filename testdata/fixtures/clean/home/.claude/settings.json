@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "filesystem": {
-      "command": "npx",
-      "args": ["@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+      "command": "./tools/mcp-server-filesystem.js",
+      "args": ["/home/user/projects"]
     }
   }
 }
