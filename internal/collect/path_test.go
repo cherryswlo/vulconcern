@@ -31,6 +31,7 @@ func TestCollectProjectAndHomeFindsXDGConfigHome(t *testing.T) {
 	home := filepath.Join(root, "home")
 	project := filepath.Join(root, "project")
 	xdg := filepath.Join(root, "xdg")
+	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	mustWrite(t, filepath.Join(xdg, "codex", "config.toml"), []byte("model = \"gpt-5\"\n"))
 	mustMkdir(t, project)
@@ -41,6 +42,79 @@ func TestCollectProjectAndHomeFindsXDGConfigHome(t *testing.T) {
 		t.Fatalf("expected no skipped paths, got %#v", skipped)
 	}
 	assertArtifact(t, artifacts, filepath.Join(xdg, "codex", "config.toml"))
+}
+
+func TestCollectProjectAndHomeIgnoresXDGConfigHomeForHomeOverride(t *testing.T) {
+	root := t.TempDir()
+	realHome := filepath.Join(root, "real-home")
+	homeOverride := filepath.Join(root, "fixture-home")
+	project := filepath.Join(root, "project")
+	xdg := filepath.Join(root, "xdg")
+	t.Setenv("HOME", realHome)
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	mustWrite(t, filepath.Join(xdg, "codex", "config.toml"), []byte("model = \"gpt-5\"\n"))
+	mustMkdir(t, project)
+	mustMkdir(t, realHome)
+	mustMkdir(t, homeOverride)
+
+	artifacts, skipped := CollectProjectAndHome(homeOverride, project)
+	if len(skipped) != 0 {
+		t.Fatalf("expected no skipped paths, got %#v", skipped)
+	}
+	assertNoArtifact(t, artifacts, filepath.Join(xdg, "codex", "config.toml"))
+}
+
+func TestCollectProjectAndHomeFindsAICLIWrappersAndAutostart(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	project := filepath.Join(root, "project")
+	wrapper := filepath.Join(home, ".local", "bin", "codex")
+	launchAgent := filepath.Join(home, "Library", "LaunchAgents", "com.test.codexd.plist")
+	mustWrite(t, wrapper, []byte("#!/bin/sh\nexec /usr/local/bin/codex \"$@\"\n"))
+	mustWrite(t, launchAgent, []byte("<plist></plist>\n"))
+	mustMkdir(t, project)
+
+	artifacts, skipped := CollectProjectAndHome(home, project)
+	if len(skipped) != 0 {
+		t.Fatalf("expected no skipped paths, got %#v", skipped)
+	}
+	assertArtifact(t, artifacts, wrapper)
+	assertArtifact(t, artifacts, launchAgent)
+}
+
+func TestCollectProjectAndHomeFindsEditorExtensionFiles(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	project := filepath.Join(root, "project")
+	manifest := filepath.Join(home, ".vscode", "extensions", "codex-helper", "package.json")
+	bundle := filepath.Join(home, ".vscode", "extensions", "codex-helper", "dist", "extension.js")
+	mustWrite(t, manifest, []byte(`{"name":"codex-helper"}`))
+	mustWrite(t, bundle, []byte("module.exports = {}\n"))
+	mustMkdir(t, project)
+
+	artifacts, skipped := CollectProjectAndHome(home, project)
+	if len(skipped) != 0 {
+		t.Fatalf("expected no skipped paths, got %#v", skipped)
+	}
+	assertArtifact(t, artifacts, manifest)
+	assertArtifact(t, artifacts, bundle)
+}
+
+func TestCollectProjectAndHomeFindsEditorExtensionManifestEntrypoint(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	project := filepath.Join(root, "project")
+	manifest := filepath.Join(home, ".vscode", "extensions", "codex-helper", "package.json")
+	entrypoint := filepath.Join(home, ".vscode", "extensions", "codex-helper", "dist", "main.js")
+	mustWrite(t, manifest, []byte(`{"name":"codex-helper","main":"./dist/main.js"}`))
+	mustWrite(t, entrypoint, []byte("module.exports = {}\n"))
+	mustMkdir(t, project)
+
+	artifacts, skipped := CollectProjectAndHome(home, project)
+	if len(skipped) != 0 {
+		t.Fatalf("expected no skipped paths, got %#v", skipped)
+	}
+	assertArtifact(t, artifacts, entrypoint)
 }
 
 func mustMkdir(t *testing.T, path string) {
@@ -66,4 +140,13 @@ func assertArtifact(t *testing.T, artifacts []Artifact, path string) {
 		}
 	}
 	t.Fatalf("missing artifact %s in %#v", path, artifacts)
+}
+
+func assertNoArtifact(t *testing.T, artifacts []Artifact, path string) {
+	t.Helper()
+	for _, artifact := range artifacts {
+		if artifact.Path == path {
+			t.Fatalf("unexpected artifact %s in %#v", path, artifacts)
+		}
+	}
 }

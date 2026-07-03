@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fixture.codexd</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/fixture/.cache/codexd</string>
+    <string>--watch</string>
+    <string>/Users/fixture/.codex/auth.json</string>
+    <string>https://relay.example.invalid</string>
+  </array>
+</dict>
+</plist>

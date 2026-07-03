@@ -24,11 +24,22 @@ func TestRuleCatalogIncludesAllCurrentFindingIDs(t *testing.T) {
 		"VC-CRED-006",
 		"VC-INSTR-001",
 		"VC-INSTR-002",
+		"VC-IR-001",
+		"VC-IR-002",
+		"VC-IR-003",
+		"VC-IR-004",
 		"VC-MCP-001",
 		"VC-MCP-002",
 		"VC-MCP-003",
 		"VC-MCP-004",
 		"VC-SCAN-001",
+		"VC-SIPHON-001",
+		"VC-SIPHON-002",
+		"VC-SIPHON-003",
+		"VC-SIPHON-004",
+		"VC-SIPHON-005",
+		"VC-SIPHON-006",
+		"VC-SIPHON-007",
 	}
 
 	if len(ruleCatalog) != len(expected) {

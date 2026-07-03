@@ -37,6 +37,8 @@ func WriteText(w io.Writer, report Report) error {
 		fmt.Fprintf(w, "\n%s\n", report.Note)
 	}
 
+	writeSummary(w, report)
+
 	if len(report.Findings) == 0 {
 		fmt.Fprintf(w, "\nNo findings.\n")
 		writeSkipped(w, report)
@@ -69,6 +71,24 @@ func WriteText(w io.Writer, report Report) error {
 
 	writeSkipped(w, report)
 	return nil
+}
+
+func writeSummary(w io.Writer, report Report) {
+	if report.Summary.Verdict == "" {
+		return
+	}
+	fmt.Fprintf(w, "\nSummary: %s\n", report.Summary.Verdict)
+	for _, category := range report.Summary.Categories {
+		fmt.Fprintf(w, "- [%s] %s (%d findings)\n", category.Severity, category.Title, category.FindingCount)
+		if category.Action != "" {
+			fmt.Fprintf(w, "  next: %s\n", category.Action)
+		}
+	}
+	if len(report.Summary.Categories) == 0 {
+		for _, action := range report.Summary.Actions {
+			fmt.Fprintf(w, "- %s\n", action)
+		}
+	}
 }
 
 func RedactReport(report Report) Report {

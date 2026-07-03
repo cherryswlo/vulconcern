@@ -32,7 +32,9 @@ func EvaluateConfig(artifacts []collect.Artifact) []finding.Finding {
 		}
 		findings = append(findings, rawConfigKeyRisks(artifact)...)
 		findings = append(findings, remoteURLRisks(artifact, text)...)
-		findings = append(findings, baseURLOverrideRisks(artifact, text)...)
+		if !parsed {
+			findings = append(findings, baseURLOverrideRisks(artifact, text)...)
+		}
 	}
 	return dedupe(findings)
 }
@@ -40,9 +42,68 @@ func EvaluateConfig(artifacts []collect.Artifact) []finding.Finding {
 func semanticConfigRisks(artifact collect.Artifact) ([]finding.Finding, bool) {
 	var root any
 	if err := json.Unmarshal(artifact.Raw, &root); err != nil {
-		return nil, false
+		jsonc := stripJSONComments(artifact.Raw)
+		if err := json.Unmarshal(jsonc, &root); err != nil {
+			return nil, false
+		}
 	}
 	return dedupe(walkConfigValue(artifact, filepath.Dir(artifact.Path), "", root)), true
+}
+
+func stripJSONComments(raw []byte) []byte {
+	out := make([]byte, 0, len(raw))
+	inString := false
+	escaped := false
+	for i := 0; i < len(raw); i++ {
+		ch := raw[i]
+		if inString {
+			out = append(out, ch)
+			if escaped {
+				escaped = false
+				continue
+			}
+			switch ch {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+
+		if ch == '"' {
+			inString = true
+			out = append(out, ch)
+			continue
+		}
+		if ch == '/' && i+1 < len(raw) {
+			switch raw[i+1] {
+			case '/':
+				i += 2
+				for i < len(raw) && raw[i] != '\n' && raw[i] != '\r' {
+					i++
+				}
+				if i < len(raw) {
+					out = append(out, raw[i])
+				}
+				continue
+			case '*':
+				i += 2
+				for i+1 < len(raw) && !(raw[i] == '*' && raw[i+1] == '/') {
+					if raw[i] == '\n' || raw[i] == '\r' {
+						out = append(out, raw[i])
+					}
+					i++
+				}
+				if i+1 < len(raw) {
+					i++
+				}
+				continue
+			}
+		}
+		out = append(out, ch)
+	}
+	return out
 }
 
 func walkConfigValue(artifact collect.Artifact, baseDir, key string, value any) []finding.Finding {
@@ -112,7 +173,9 @@ func semanticTOMLRisks(artifact collect.Artifact) []finding.Finding {
 		current = map[string]any{}
 	}
 
-	for _, line := range strings.Split(string(artifact.Raw), "\n") {
+	lines := strings.Split(string(artifact.Raw), "\n")
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
 		trimmed := strings.TrimSpace(stripLineComment(line))
 		if trimmed == "" {
 			continue
@@ -127,6 +190,18 @@ func semanticTOMLRisks(artifact collect.Artifact) []finding.Finding {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
+		if strings.HasPrefix(value, "[") && !strings.Contains(value, "]") {
+			parts := []string{value}
+			for i+1 < len(lines) {
+				i++
+				next := strings.TrimSpace(stripLineComment(lines[i]))
+				parts = append(parts, next)
+				if strings.Contains(next, "]") {
+					break
+				}
+			}
+			value = strings.Join(parts, " ")
+		}
 		if parsed, ok := parseQuotedValue(value); ok {
 			current[key] = parsed
 			continue
@@ -247,11 +322,34 @@ func resolveCommandTarget(baseDir, command string, args []string) (string, bool)
 			}
 		}
 	}
+	if local := projectLocalCommandTarget(baseDir, command); local != "" {
+		return local, false
+	}
 	resolved, err := exec.LookPath(command)
 	if err != nil {
 		return "", false
 	}
 	return resolved, false
+}
+
+func projectLocalCommandTarget(baseDir, command string) string {
+	command = strings.TrimSpace(strings.Trim(command, `"'`))
+	if command == "" || strings.Contains(command, string(os.PathSeparator)) {
+		return ""
+	}
+	dir := filepath.Clean(baseDir)
+	for depth := 0; depth < 6; depth++ {
+		candidate := filepath.Join(dir, "node_modules", ".bin", command)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
 }
 
 func resolveExplicitPath(baseDir, raw string) (string, bool) {
@@ -306,7 +404,11 @@ func suspiciousPathClass(path string, relativeToConfig bool) string {
 
 func isBaseURLKey(key string) bool {
 	lower := strings.ToLower(key)
-	return lower == "openai_base_url" || lower == "anthropic_base_url"
+	return lower == "base_url" ||
+		lower == "baseurl" ||
+		lower == "openai_base_url" ||
+		lower == "anthropic_base_url" ||
+		strings.HasSuffix(lower, "_base_url")
 }
 
 func stripLineComment(line string) string {
@@ -362,7 +464,11 @@ func parseStringArrayValue(value string) ([]any, bool) {
 	parts := strings.Split(body, ",")
 	out := make([]any, 0, len(parts))
 	for _, part := range parts {
-		parsed, ok := parseQuotedValue(strings.TrimSpace(part))
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		parsed, ok := parseQuotedValue(part)
 		if !ok {
 			return nil, false
 		}

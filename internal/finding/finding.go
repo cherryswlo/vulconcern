@@ -30,11 +30,26 @@ type Skipped struct {
 	Reason string `json:"reason"`
 }
 
+type Summary struct {
+	Verdict    string            `json:"verdict"`
+	Categories []SummaryCategory `json:"categories,omitempty"`
+	Actions    []string          `json:"actions,omitempty"`
+}
+
+type SummaryCategory struct {
+	ID           string   `json:"id"`
+	Title        string   `json:"title"`
+	Severity     Severity `json:"severity"`
+	FindingCount int      `json:"finding_count"`
+	Action       string   `json:"action,omitempty"`
+}
+
 type Report struct {
 	Version         int       `json:"v"`
 	Project         string    `json:"project"`
 	BaselinePath    string    `json:"baseline_path"`
 	BaselinePresent bool      `json:"baseline_present"`
+	Summary         Summary   `json:"summary,omitempty"`
 	Note            string    `json:"note,omitempty"`
 	Findings        []Finding `json:"findings"`
 	Skipped         []Skipped `json:"skipped,omitempty"`

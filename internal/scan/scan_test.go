@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -81,5 +82,42 @@ func TestAcceptBaselineRejectsUnreadableArtifact(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("AcceptBaseline accepted an unreadable artifact")
+	}
+}
+
+func TestRunReportsOversizedLightweightCodeArtifact(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	project := filepath.Join(root, "project")
+	if err := os.MkdirAll(project, 0700); err != nil {
+		t.Fatal(err)
+	}
+	extension := filepath.Join(home, ".vscode", "extensions", "codex-helper", "dist", "extension.js")
+	if err := os.MkdirAll(filepath.Dir(extension), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".vscode", "extensions", "codex-helper", "package.json"), []byte(`{"name":"codex-helper"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(extension, bytes.Repeat([]byte("a"), (1<<20)+1), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(Options{
+		Home:         home,
+		Project:      project,
+		BaselinePath: filepath.Join(root, "baseline.json"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hasIncompleteScan := false
+	for _, item := range report.Findings {
+		if item.CheckID == "VC-SCAN-001" {
+			hasIncompleteScan = true
+		}
+	}
+	if !hasIncompleteScan {
+		t.Fatalf("expected oversized code to produce VC-SCAN-001, got %#v", report.Findings)
 	}
 }

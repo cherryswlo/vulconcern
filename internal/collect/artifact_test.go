@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,6 +74,30 @@ func TestFindCredentialCopyCandidatesIncludesNestedRenamedCredentialLikeFiles(t 
 		}
 	}
 	t.Fatalf("missing nested renamed credential candidate %s in %#v", copyPath, candidates)
+}
+
+func TestExistingArtifactsFlagsOversizedLightweightCode(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "extension.js")
+	mustWriteArtifactFile(t, path, bytes.Repeat([]byte("a"), int(maxLightweightCodeReadBytes)+1))
+
+	artifacts, skipped := ExistingArtifacts([]CandidatePath{{
+		Path: path,
+		Kind: "extension-code",
+	}}, true)
+
+	if len(skipped) != 1 {
+		t.Fatalf("skipped count = %d, want 1: %#v", len(skipped), skipped)
+	}
+	if len(artifacts) != 1 {
+		t.Fatalf("artifact count = %d, want 1", len(artifacts))
+	}
+	if artifacts[0].Hash == "" {
+		t.Fatalf("oversized artifact hash is empty")
+	}
+	if len(artifacts[0].Raw) != 0 {
+		t.Fatalf("oversized artifact content was read into memory")
+	}
 }
 
 func mustWriteArtifactFile(t *testing.T, path string, raw []byte) {

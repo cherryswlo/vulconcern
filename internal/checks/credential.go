@@ -127,7 +127,8 @@ func hasSuspiciousAICLIAlias(text string) bool {
 		lower := strings.ToLower(trimmed)
 		if !strings.HasPrefix(lower, "alias claude=") &&
 			!strings.HasPrefix(lower, "alias codex=") &&
-			!strings.HasPrefix(lower, "alias gemini=") {
+			!strings.HasPrefix(lower, "alias gemini=") &&
+			!strings.HasPrefix(lower, "alias q=") {
 			continue
 		}
 		parts := strings.SplitN(trimmed, "=", 2)

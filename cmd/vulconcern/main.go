@@ -37,12 +37,13 @@ func main() {
 func runScan(args []string) int {
 	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
 	project := fs.String("project", "", "project directory to scan")
+	home := fs.String("home", "", "home directory to scan")
 	jsonOut := fs.Bool("json", false, "emit JSON report")
 	baselinePath := fs.String("baseline", "", "baseline path")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	report, err := scan.Run(scan.Options{Project: *project, BaselinePath: *baselinePath})
+	report, err := scan.Run(scan.Options{Project: *project, Home: *home, BaselinePath: *baselinePath})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "scan failed: %v\n", err)
 		return 2
@@ -66,16 +67,17 @@ func runScan(args []string) int {
 
 func runBaseline(args []string) int {
 	if len(args) < 1 || args[0] != "accept" {
-		fmt.Fprintln(os.Stderr, "usage: vulconcern baseline accept [--project DIR] [--baseline PATH]")
+		fmt.Fprintln(os.Stderr, "usage: vulconcern baseline accept [--project DIR] [--home DIR] [--baseline PATH]")
 		return 2
 	}
 	fs := flag.NewFlagSet("baseline accept", flag.ContinueOnError)
 	project := fs.String("project", "", "project directory to snapshot")
+	home := fs.String("home", "", "home directory to snapshot")
 	baselinePath := fs.String("baseline", "", "baseline path")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
-	path, count, err := scan.AcceptBaseline(scan.Options{Project: *project, BaselinePath: *baselinePath})
+	path, count, err := scan.AcceptBaseline(scan.Options{Project: *project, Home: *home, BaselinePath: *baselinePath})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "baseline accept failed: %v\n", err)
 		return 2
@@ -100,8 +102,8 @@ func usage() {
 	defaultBaseline := baseline.DefaultPath(home)
 	fmt.Fprintf(os.Stderr, "vulconcern %s\n", version)
 	fmt.Fprintf(os.Stderr, "usage:\n")
-	fmt.Fprintf(os.Stderr, "  vulconcern scan [--project DIR] [--json] [--baseline PATH]\n")
-	fmt.Fprintf(os.Stderr, "  vulconcern baseline accept [--project DIR] [--baseline PATH]\n")
+	fmt.Fprintf(os.Stderr, "  vulconcern scan [--project DIR] [--home DIR] [--json] [--baseline PATH]\n")
+	fmt.Fprintf(os.Stderr, "  vulconcern baseline accept [--project DIR] [--home DIR] [--baseline PATH]\n")
 	fmt.Fprintf(os.Stderr, "  vulconcern rules list\n")
 	fmt.Fprintf(os.Stderr, "  vulconcern version\n")
 	fmt.Fprintf(os.Stderr, "default baseline: %s\n", defaultBaseline)

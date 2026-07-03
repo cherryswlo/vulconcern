@@ -153,30 +153,39 @@ func urlRiskFindings(artifact collect.Artifact, text string, extraEvidence []fin
 }
 
 func baseURLOverrideRisks(artifact collect.Artifact, text string) []finding.Finding {
-	lower := strings.ToLower(text)
-	if !strings.Contains(lower, "anthropic_base_url") && !strings.Contains(lower, "openai_base_url") {
-		return nil
-	}
 	var findings []finding.Finding
-	for _, raw := range urlPattern.FindAllString(text, -1) {
-		parsed, err := url.Parse(raw)
-		if err != nil || parsed.Hostname() == "" {
+	for _, line := range strings.Split(text, "\n") {
+		if !hasBaseURLMarker(line) {
 			continue
 		}
-		host := strings.ToLower(parsed.Hostname())
-		if isFirstPartyAIHost(host) {
-			continue
+		for _, raw := range urlPattern.FindAllString(line, -1) {
+			parsed, err := url.Parse(raw)
+			if err != nil || parsed.Hostname() == "" {
+				continue
+			}
+			host := strings.ToLower(parsed.Hostname())
+			if isFirstPartyAIHost(host) {
+				continue
+			}
+			findings = append(findings, finding.Finding{
+				CheckID:     "VC-CONFIG-001",
+				Severity:    finding.High,
+				Title:       "AI provider base URL points to a non-first-party host",
+				Evidence:    baseEvidence(artifact, "url_host", host),
+				Citation:    "Non-first-party AI API relay or gateway override",
+				Remediation: "Remove the override unless this is a known corporate gateway; record an allowlist entry once allowlists land.",
+			})
 		}
-		findings = append(findings, finding.Finding{
-			CheckID:     "VC-CONFIG-001",
-			Severity:    finding.High,
-			Title:       "AI provider base URL points to a non-first-party host",
-			Evidence:    baseEvidence(artifact, "url_host", host),
-			Citation:    "Non-first-party AI API relay or gateway override",
-			Remediation: "Remove the override unless this is a known corporate gateway; record an allowlist entry once allowlists land.",
-		})
 	}
 	return dedupe(findings)
+}
+
+func hasBaseURLMarker(text string) bool {
+	lower := strings.ToLower(text)
+	return strings.Contains(lower, "anthropic_base_url") ||
+		strings.Contains(lower, "openai_base_url") ||
+		strings.Contains(lower, "base_url") ||
+		strings.Contains(lower, "baseurl")
 }
 
 func hiddenUnicodeClasses(text string) []string {

@@ -51,6 +51,16 @@ func TestWriteTextGroupsFindingsBySeverity(t *testing.T) {
 	report := Report{
 		Version: 1,
 		Project: "/tmp/project",
+		Summary: Summary{
+			Verdict: "review_required",
+			Categories: []SummaryCategory{{
+				ID:           "credential_exposure",
+				Title:        "Credential exposure or unsafe credential surface",
+				Severity:     High,
+				FindingCount: 1,
+				Action:       "Rotate affected credentials.",
+			}},
+		},
 		Findings: []Finding{
 			{CheckID: "VC-LOW", Severity: Info, Title: "info"},
 			{CheckID: "VC-HIGH", Severity: High, Title: "high"},
@@ -63,6 +73,12 @@ func TestWriteTextGroupsFindingsBySeverity(t *testing.T) {
 	text := out.String()
 	if !strings.Contains(text, "HIGH\n- [VC-HIGH] high") {
 		t.Fatalf("missing high group in:\n%s", text)
+	}
+	if !strings.Contains(text, "Summary: review_required") {
+		t.Fatalf("missing summary in:\n%s", text)
+	}
+	if !strings.Contains(text, "next: Rotate affected credentials.") {
+		t.Fatalf("missing summary action in:\n%s", text)
 	}
 	if !strings.Contains(text, "INFO\n- [VC-LOW] info") {
 		t.Fatalf("missing info group in:\n%s", text)

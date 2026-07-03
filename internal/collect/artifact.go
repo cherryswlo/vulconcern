@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,6 +29,8 @@ type Artifact struct {
 	Raw        []byte
 	SkipReason string
 }
+
+const maxLightweightCodeReadBytes int64 = 1 << 20
 
 func ExistingArtifacts(candidates []CandidatePath, readContent bool) ([]Artifact, []finding.Skipped) {
 	var artifacts []Artifact
@@ -58,6 +61,21 @@ func ExistingArtifacts(candidates []CandidatePath, readContent bool) ([]Artifact
 			Size:    info.Size(),
 		}
 		if readContent {
+			if isLightweightCodeCandidate(c.Kind) && info.Size() > maxLightweightCodeReadBytes {
+				hash, err := fileSHA256(c.Path)
+				if err != nil {
+					skipped = append(skipped, finding.Skipped{Path: c.Path, Reason: err.Error()})
+					continue
+				}
+				artifact.Hash = hash
+				artifact.SkipReason = "content exceeds lightweight read limit; content not inspected"
+				artifacts = append(artifacts, artifact)
+				skipped = append(skipped, finding.Skipped{
+					Path:   c.Path,
+					Reason: artifact.SkipReason,
+				})
+				continue
+			}
 			raw, err := os.ReadFile(c.Path)
 			if err != nil {
 				skipped = append(skipped, finding.Skipped{Path: c.Path, Reason: err.Error()})
@@ -70,6 +88,24 @@ func ExistingArtifacts(candidates []CandidatePath, readContent bool) ([]Artifact
 		artifacts = append(artifacts, artifact)
 	}
 	return artifacts, skipped
+}
+
+func isLightweightCodeCandidate(kind string) bool {
+	return kind == "ai-cli-wrapper" || kind == "extension-code"
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func normalizedArtifactBytes(candidate CandidatePath, raw []byte) []byte {
@@ -229,6 +265,11 @@ func CollectProjectAndHome(home, project string) ([]Artifact, []finding.Skipped)
 		CandidateInstructionPaths(home, project),
 		CandidateCredentialPaths(home),
 		CandidateShellRCPaths(home),
+		CandidateShellHistoryPaths(home),
+		CandidateIncidentPaths(home),
+		CandidateAICLIWrapperPaths(home, project),
+		CandidateAutostartPaths(home),
+		CandidateEditorExtensionPaths(home),
 	} {
 		found, skip := ExistingArtifacts(candidates, true)
 		artifacts = append(artifacts, found...)

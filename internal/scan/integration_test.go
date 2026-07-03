@@ -46,6 +46,13 @@ func TestIntegrationSingularityLike(t *testing.T) {
 		"VC-CRED-004",
 		"VC-CRED-005",
 		"VC-CRED-006",
+		"VC-IR-002",
+		"VC-SIPHON-001",
+		"VC-SIPHON-002",
+		"VC-SIPHON-003",
+		"VC-SIPHON-004",
+		"VC-SIPHON-006",
+		"VC-SIPHON-007",
 	}
 	for _, id := range expected {
 		if !ids[id] {

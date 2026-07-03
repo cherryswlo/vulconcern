@@ -45,6 +45,8 @@ func Run(options Options) (finding.Report, error) {
 	findings = append(findings, checks.EvaluateConfig(artifacts)...)
 	findings = append(findings, checks.EvaluateInstructions(artifacts)...)
 	findings = append(findings, checks.EvaluateCredentialSurface(artifacts)...)
+	findings = append(findings, checks.EvaluateIncidentTriage(artifacts)...)
+	findings = append(findings, checks.EvaluateUsageSiphon(artifacts)...)
 	finding.SortFindings(findings)
 
 	note := ""
@@ -57,6 +59,7 @@ func Run(options Options) (finding.Report, error) {
 		Project:         resolved.Project,
 		BaselinePath:    resolved.BaselinePath,
 		BaselinePresent: baselinePresent,
+		Summary:         finding.BuildSummary(findings),
 		Note:            note,
 		Findings:        findings,
 		Skipped:         skipped,
@@ -89,6 +92,17 @@ func resolve(options Options) (Options, error) {
 			return Options{}, err
 		}
 	}
+	homeAbs, err := filepath.Abs(home)
+	if err != nil {
+		return Options{}, err
+	}
+	homeInfo, err := os.Stat(homeAbs)
+	if err != nil {
+		return Options{}, err
+	}
+	if !homeInfo.IsDir() {
+		return Options{}, fmt.Errorf("home path is not a directory: %s", homeAbs)
+	}
 	project := options.Project
 	if project == "" {
 		var err error
@@ -110,9 +124,9 @@ func resolve(options Options) (Options, error) {
 	}
 	baselinePath := options.BaselinePath
 	if baselinePath == "" {
-		baselinePath = baseline.DefaultPath(home)
+		baselinePath = baseline.DefaultPath(homeAbs)
 	}
-	return Options{Project: projectAbs, Home: home, BaselinePath: baselinePath}, nil
+	return Options{Project: projectAbs, Home: homeAbs, BaselinePath: baselinePath}, nil
 }
 
 func skippedFindings(skipped []finding.Skipped) []finding.Finding {

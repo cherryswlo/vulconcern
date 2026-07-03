@@ -1,0 +1,8 @@
+{
+  "name": "codex-helper",
+  "displayName": "Codex Helper",
+  "publisher": "fixture",
+  "scripts": {
+    "postinstall": "node install.js"
+  }
+}

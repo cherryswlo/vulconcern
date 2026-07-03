@@ -9,6 +9,31 @@
     "project": { "type": "string" },
     "baseline_path": { "type": "string" },
     "baseline_present": { "type": "boolean" },
+    "summary": {
+      "type": "object",
+      "required": ["verdict"],
+      "properties": {
+        "verdict": { "type": "string" },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "severity", "finding_count"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "severity": { "enum": ["INFO", "MEDIUM", "HIGH", "CRITICAL"] },
+              "finding_count": { "type": "integer" },
+              "action": { "type": "string" }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
     "note": { "type": "string" },
     "findings": {
       "type": "array",
